@@ -638,7 +638,7 @@ function drawObstacles() {
      fill(255);
      textAlign(CENTER);
      textSize(14);
-     text("Click to inspect", o.x, o.y - o.size);
+     text("Press F to inspect", o.x, o.y - o.size);
    }
 
 
@@ -1201,7 +1201,7 @@ function drawHUD() {
  fill(255);
  textSize(15);
  textAlign(LEFT);
- text("WASD: Move   Click: Collect   Avoid cops", 16, 24);
+ text("WASD: Move   F: Collect   Avoid cops", 16, 24);
 
 
  textSize(18);
@@ -1285,6 +1285,10 @@ function drawGameOver() {
 // ------------------------------------------------------------
 function keyPressed() {
 
+if (gameState === STATE_SCAVENGE &&
+    (key === "f" || key === "F")) {
+  checkItemPickup();
+}
 
  if (gameState === STATE_HOME && keyCode === ENTER) {
  restartGame();
@@ -1327,12 +1331,6 @@ function mousePressed() {
  if (!music.isPlaying()) {
    music.loop();
  }
-
-
- if (gameState === STATE_SCAVENGE) {
-   checkItemClick();
- }
-
 
  if (gameState === STATE_BUNKER) {
    checkBunkerClick();
@@ -1387,48 +1385,36 @@ function drawFlashlight() {
 }
 
 
-function checkItemClick() {
- let worldMouseX = mouseX + camX;
- let worldMouseY = mouseY + camY;
+function checkItemPickup() {
+  for (let i = 0; i < obstacles.length; i++) {
+    let o = obstacles[i];
 
+    if (o.collected) continue;
 
- for (let i = 0; i < obstacles.length; i++) {
-   let o = obstacles[i];
+    // Only require the player to be close
+    if (dist(player.x, player.y, o.x, o.y) < 120) {
 
+      if (pickupSound.isLoaded()) {
+        pickupSound.stop();
+        pickupSound.play();
+      }
 
-   if (o.collected) continue;
+      o.collected = true;
+      score++;
 
+      if (o.real) {
+        if (o.type === "evidence") {
+          evidence++;
+        }
 
-   let nearPlayer = dist(player.x, player.y, o.x, o.y) < 120;
+        if (o.type === "supply") {
+          supplies++;
+        }
+      }
 
-
-   let clickedItem =
-     worldMouseX > o.x - o.size / 2 &&
-     worldMouseX < o.x + o.size / 2 &&
-     worldMouseY > o.y - (o.size * 0.7) / 2 &&
-     worldMouseY < o.y + (o.size * 0.7) / 2;
-
-
-   if (nearPlayer && clickedItem) {
-     if (pickupSound.isLoaded()) {
-       pickupSound.stop();
-       pickupSound.play();
-     }
-
-
-     o.collected = true;
-     score++;
-
-
-     if (o.real) {
-       if (o.type === "evidence") evidence++;
-       if (o.type === "supply") supplies++;
-     }
-
-
-     return;
-   }
- }
+      return; // Collect only one item per key press
+    }
+  }
 }
 
 
