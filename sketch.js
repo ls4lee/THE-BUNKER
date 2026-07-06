@@ -96,7 +96,8 @@ let denyStampImage;
 let shootSound;
 
 
-let music;
+let scavengingMusic;
+let bunkerMusic;
 let bullets = [];
 
 
@@ -244,7 +245,8 @@ function preload() {
  bgImage = loadImage("assets/images/paperspleasebackground.png");
 
 
- music = loadSound("assets/sounds/papersplease.mp3");
+ scavengingMusic = loadSound("assets/sounds/scavenging.mp3");
+ bunkerMusic = loadSound("assets/sounds/bunker.mp3");
  playerHitSound = loadSound("assets/sounds/playerhit.wav");
  shootSound = loadSound("assets/sounds/shoot.wav");
  eyeImage = loadImage("assets/images/eye.png");
@@ -277,7 +279,8 @@ function setup() {
  darknessLayer = createGraphics(width, height);
 
 
- music.setVolume(2.0);
+ scavengingMusic.setVolume(0.6);
+ bunkerMusic.setVolume(0.6);
  pickupSound.setVolume(2.0);
  shootSound.setVolume(2.5);
  playerHitSound.setVolume(1.0);
@@ -399,7 +402,7 @@ checkEnemyPlayerCollision();
 
    pop();
    drawFlashlight();
-   // redraw player on top of the flashlight overlay so the sprite is visible
+   drawEnemyScreen();
    drawPlayerScreen();
    drawMinimap();
    drawHUD();
@@ -479,6 +482,28 @@ function drawFlashlight() {
  pop();
 }
 
+function drawEnemyScreen() {
+  push();
+  imageMode(CENTER);
+
+  for (let i = 0; i < enemies.length; i++) {
+    let e = enemies[i];
+
+    drawingContext.shadowBlur = 18;
+    drawingContext.shadowColor = "white";
+
+    image(
+      copImage,
+      e.x - camX,
+      e.y - camY,
+      e.r * 4,
+      e.r * 4
+    );
+  }
+
+  drawingContext.shadowBlur = 0;
+  pop();
+}
 
 // Draw player in screen coordinates (used to render on top of overlays)
 function drawPlayerScreen() {
@@ -1325,13 +1350,6 @@ if (
 
 
 function mousePressed() {
- userStartAudio();
-
-
- if (!music.isPlaying()) {
-   music.loop();
- }
-
  if (gameState === STATE_BUNKER) {
    checkBunkerClick();
  }
@@ -1643,7 +1661,12 @@ function checkBunkerEntrance() {
 
 
 function finishScavengeLevel() {
- supplies -= 2;
+scavengingMusic.stop();
+
+if (!bunkerMusic.isPlaying()) {
+  bunkerMusic.loop();
+}
+  supplies -= 2;
 
 
  if (supplies < 0) {
@@ -1692,7 +1715,11 @@ function startNextScavengeLevel() {
  camX = player.x - width / 2;
  camY = player.y - height / 2;
 
+bunkerMusic.stop();
 
+if (!scavengingMusic.isPlaying()) {
+  scavengingMusic.loop();
+}
  gameState = STATE_SCAVENGE;
 }
 
@@ -1737,6 +1764,13 @@ image(
 
 function restartGame() {
  gameState = STATE_SCAVENGE;
+ userStartAudio();
+
+bunkerMusic.stop();
+
+if (!scavengingMusic.isPlaying()) {
+  scavengingMusic.loop();
+}
 
 
  level = 1;
