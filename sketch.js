@@ -98,6 +98,7 @@ let shootSound;
 
 let scavengingMusic;
 let bunkerMusic;
+let sirenSound;
 let bullets = [];
 
 
@@ -139,6 +140,7 @@ let eyeImage;
 let copImage;
 let timeLeft = 60;
 let timerStarted = false;
+let nextSirenTime = 0;
 
 
 let supplies = 0;
@@ -247,6 +249,7 @@ function preload() {
 
  scavengingMusic = loadSound("assets/sounds/scavenging.mp3");
  bunkerMusic = loadSound("assets/sounds/bunker.mp3");
+ sirenSound = loadSound("assets/sounds/papersplease.mp3");
  playerHitSound = loadSound("assets/sounds/playerhit.wav");
  shootSound = loadSound("assets/sounds/shoot.wav");
  eyeImage = loadImage("assets/images/eye.png");
@@ -279,11 +282,12 @@ function setup() {
  darknessLayer = createGraphics(width, height);
 
 
- scavengingMusic.setVolume(0.6);
- bunkerMusic.setVolume(0.6);
+ scavengingMusic.setVolume(0.2);
+ bunkerMusic.setVolume(0.2);
+ sirenSound.setVolume(0.075);
  pickupSound.setVolume(2.0);
  shootSound.setVolume(2.5);
- playerHitSound.setVolume(1.0);
+ playerHitSound.setVolume(6.0);
  bossData = enemyData.boss;
 
 
@@ -385,7 +389,7 @@ function draw() {
 
    handleInput();
    updateTimer();
-
+   updateSiren();  
 
    checkWaveSpawns();   // this makes cops spawn
    updateEnemies();     // this makes cops chase you
@@ -1278,6 +1282,15 @@ function drawWinScreen() {
 // drawGameOver()
 // ------------------------------------------------------------
 function drawGameOver() {
+
+ if (scavengingMusic.isPlaying()) {
+   scavengingMusic.stop();
+ }
+
+ if (bunkerMusic.isPlaying()) {
+   bunkerMusic.stop();
+ }
+
  fill(0, 0, 0, 190);
  rect(0, 0, width, height);
 
@@ -1402,6 +1415,26 @@ function drawFlashlight() {
  pop();
 }
 
+function updateSiren() {
+
+  // Never allow sirens outside scavenging
+  if (gameState !== STATE_SCAVENGE) {
+    if (sirenSound.isPlaying()) {
+      sirenSound.stop();
+    }
+    return;
+  }
+
+  if (millis() > nextSirenTime) {
+
+    if (!sirenSound.isPlaying()) {
+      sirenSound.play();
+    }
+
+    // Wait 45–90 seconds before the next one
+    nextSirenTime = millis() + random(45000, 90000);
+  }
+}
 
 function checkItemPickup() {
   for (let i = 0; i < obstacles.length; i++) {
@@ -1661,7 +1694,16 @@ function checkBunkerEntrance() {
 
 
 function finishScavengeLevel() {
+
 scavengingMusic.stop();
+
+if (sirenSound.isPlaying()) {
+  sirenSound.stop();
+}
+
+if (!bunkerMusic.isPlaying()) {
+  bunkerMusic.loop();
+}
 
 if (!bunkerMusic.isPlaying()) {
   bunkerMusic.loop();
@@ -1706,6 +1748,7 @@ function startNextScavengeLevel() {
  timeLeft = 60;
  enemies = [];
  nextWave = 0;
+ nextSirenTime = millis() + random(10000, 30000);
 
 
  player.x = WORLD_W / 2;
@@ -1761,6 +1804,11 @@ image(
  noStroke();
 }
 
+function gameOver() {
+  scavengingMusic.stop();
+  bunkerMusic.stop();
+  gameState = STATE_OVER;
+}
 
 function restartGame() {
  gameState = STATE_SCAVENGE;
@@ -1781,7 +1829,7 @@ if (!scavengingMusic.isPlaying()) {
  supplies = 0;
  evidence = 0;
  timeLeft = 60;
-
+ nextSirenTime = millis() + random(10000, 30000);
 
  enemies = [];
  nextWave = 0;
@@ -1800,6 +1848,7 @@ if (!scavengingMusic.isPlaying()) {
  for (let i = 0; i < obstacles.length; i++) {
    obstacles[i].collected = false;
  }
+ 
 }
 
 
