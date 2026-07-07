@@ -88,9 +88,21 @@ let player = {
  bounceVY: 0,
 };
 
+let doppelganger = {
+  x: WORLD_W / 2,
+  y: WORLD_H - 200,
+  direction: { x: 0, y: -1 },
+  currentFrame: 0,
+  frameTimer: 0,
+  row: 0,
+  active: false
+};
+
 
 let bgImage;
 let playerSheet;
+let playerHistory = [];
+let doppelgangerSheet;
 let paperImage;
 let denyStampImage;
 let shootSound;
@@ -244,6 +256,7 @@ function preload() {
  enemyData    = loadJSON("data/enemies.json");
  obstacleData = loadJSON("data/obstacles.json");
  playerSheet = loadImage("assets/images/paperspleasecharacterspritesheet.png");
+ doppelgangerSheet = loadImage("assets/images/doppelganger1.png");
  bgImage = loadImage("assets/images/paperspleasebackground.png");
 
 
@@ -391,17 +404,18 @@ function draw() {
    updateTimer();
    updateSiren();  
 
-   checkWaveSpawns();   // this makes cops spawn
-   updateEnemies();     // this makes cops chase you
+  checkWaveSpawns();   // this makes cops spawn
+  updateEnemies();     // this makes cops chase you
+  updateDoppelganger();
 
+  drawObstacles();
+  drawEnemies();
+  drawDoppelganger();
+  drawPlayer();
+  checkBunkerEntrance();
 
-   drawObstacles();
-   drawEnemies();
-   drawPlayer();
-   checkBunkerEntrance();
-
-
-checkEnemyPlayerCollision();
+  checkEnemyPlayerCollision();
+  checkDoppelgangerCollision();
 
 
    pop();
@@ -786,11 +800,44 @@ function handleInput() {
  player.x = constrain(player.x, player.r, WORLD_W - player.r);
  player.y = constrain(player.y, player.r, WORLD_H - player.r);
 
+playerHistory.push({
+  x: player.x,
+  y: player.y,
+  direction: {
+    x: player.direction.x,
+    y: player.direction.y
+  },
+  frame: currentFrame
+});
+
+if (playerHistory.length > 120) {
+  playerHistory.shift();
+}
 
 }
 
 
+function updateDoppelganger() {
 
+  if (!doppelganger.active) return;
+
+  // Wait until we have 2 seconds of history
+  if (playerHistory.length < 120) {
+    return;
+  }
+
+  let past = playerHistory[0];
+
+  doppelganger.x = past.x;
+  doppelganger.y = past.y;
+
+  doppelganger.direction = {
+    x: past.direction.x,
+    y: past.direction.y
+  };
+
+  doppelganger.currentFrame = past.frame;
+}
 
 // ------------------------------------------------------------
 // checkWaveSpawns()
@@ -1138,6 +1185,88 @@ function drawPlayer() {
   pop();
 }
 
+function drawDoppelganger() {
+
+  if (!doppelganger.active) return;
+
+  let row;
+
+  if (doppelganger.direction.y === 1) {
+    row = 3;
+  }
+  else if (doppelganger.direction.y === -1) {
+    row = 0;
+  }
+  else if (doppelganger.direction.x === 1) {
+    row = 1;
+  }
+  else if (doppelganger.direction.x === -1) {
+    row = 1;
+  }
+  else {
+    row = 0;
+  }
+
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (row === 3) {
+    offsetX = OFFSET_DOWN.x;
+    offsetY = OFFSET_DOWN.y;
+  }
+  else if (row === 0) {
+    offsetX = OFFSET_UP.x;
+    offsetY = OFFSET_UP.y;
+  }
+  else if (row === 1) {
+    offsetX = OFFSET_RIGHT.x;
+    offsetY = OFFSET_RIGHT.y;
+  }
+
+  let flip = doppelganger.direction.x === -1;
+  let appliedOffsetX = flip ? -offsetX : offsetX;
+
+  push();
+  imageMode(CENTER);
+
+  if (flip) {
+
+    translate(
+      doppelganger.x + appliedOffsetX,
+      doppelganger.y + offsetY
+    );
+
+    scale(-1, 1);
+
+    image(
+      doppelgangerSheet,
+      0,
+      0,
+      FRAME_W * PLAYER_SCALE,
+      FRAME_H * PLAYER_SCALE,
+      doppelganger.currentFrame * FRAME_W,
+      row * FRAME_H,
+      FRAME_W,
+      FRAME_H
+    );
+  }
+  else {
+
+    image(
+      doppelgangerSheet,
+      doppelganger.x + appliedOffsetX,
+      doppelganger.y + offsetY,
+      FRAME_W * PLAYER_SCALE,
+      FRAME_H * PLAYER_SCALE,
+      doppelganger.currentFrame * FRAME_W,
+      row * FRAME_H,
+      FRAME_W,
+      FRAME_H
+    );
+  }
+
+  pop();
+}
 
 
 
@@ -1562,6 +1691,29 @@ function checkEnemyPlayerCollision() {
    }
  }
 }
+
+function checkDoppelgangerCollision() {
+
+  if (!doppelganger.active) return;
+
+  // Don't check until the doppelganger has started following
+  if (playerHistory.length < 120) return;
+
+  let d = dist(
+    player.x,
+    player.y,
+    doppelganger.x,
+    doppelganger.y
+  );
+
+  if (d < player.r + 20) {
+    if (scavengingMusic.isPlaying()) {
+      scavengingMusic.stop();
+    }
+
+    gameState = STATE_OVER;
+  }
+}
 function updateTimer() {
  if (gameState !== STATE_SCAVENGE) return;
 
@@ -1753,6 +1905,10 @@ function startNextScavengeLevel() {
 
  player.x = WORLD_W / 2;
  player.y = WORLD_H - 200;
+ playerHistory = [];
+
+ doppelganger.x = player.x;
+ doppelganger.y = player.y;
 
 
  camX = player.x - width / 2;
@@ -1764,6 +1920,13 @@ if (!scavengingMusic.isPlaying()) {
   scavengingMusic.loop();
 }
  gameState = STATE_SCAVENGE;
+
+ playerHistory = [];
+
+doppelganger.x = player.x;
+doppelganger.y = player.y;
+doppelganger.direction = { x: 0, y: -1 };
+doppelganger.currentFrame = 0;
 }
 
 
@@ -1839,6 +2002,9 @@ if (!scavengingMusic.isPlaying()) {
  player.x = WORLD_W / 2;
  player.y = WORLD_H - 200;
  player.direction = { x: 0, y: -1 };
+ doppelganger.active = true;
+doppelganger.x = player.x;
+doppelganger.y = player.y;
 
 
  camX = player.x - width / 2;
@@ -1849,6 +2015,14 @@ if (!scavengingMusic.isPlaying()) {
    obstacles[i].collected = false;
  }
  
+playerHistory = [];
+
+doppelganger.active = true;
+doppelganger.x = player.x;
+doppelganger.y = player.y;
+doppelganger.direction = { x: 0, y: -1 };
+doppelganger.currentFrame = 0;
+
 }
 
 
