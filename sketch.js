@@ -148,6 +148,7 @@ let gameState = STATE_HOME;
 
 
 let darknessLayer;
+let fogLayer;
 let eyeImage;
 let copImage;
 let timeLeft = 60;
@@ -293,6 +294,7 @@ function preload() {
 function setup() {
  createCanvas(windowWidth, windowHeight);
  darknessLayer = createGraphics(width, height);
+ fogLayer = createGraphics(width, height);
 
 
  scavengingMusic.setVolume(0.2);
@@ -356,6 +358,7 @@ function windowResized() {
  resizeCanvas(windowWidth, windowHeight);
  // recreate darkness layer to match new size
  darknessLayer = createGraphics(width, height);
+ fogLayer = createGraphics(width, height);
 }
 
 
@@ -417,13 +420,17 @@ function draw() {
   checkEnemyPlayerCollision();
   checkDoppelgangerCollision();
 
+  pop();
 
-   pop();
-   drawFlashlight();
-   drawEnemyScreen();
-   drawPlayerScreen();
-   drawMinimap();
-   drawHUD();
+  drawFog();
+  drawFlashlight();
+
+  drawEnemyScreen();
+  drawDoppelgangerScreen();
+  drawPlayerScreen();
+
+  drawMinimap();
+  drawHUD();
 
 
    return;
@@ -503,12 +510,12 @@ function drawFlashlight() {
 function drawEnemyScreen() {
   push();
   imageMode(CENTER);
-
+  
   for (let i = 0; i < enemies.length; i++) {
     let e = enemies[i];
 
     drawingContext.shadowBlur = 18;
-    drawingContext.shadowColor = "white";
+    drawingContext.shadowColor = "rgba(255, 80, 80, 0.8)";
 
     image(
       copImage,
@@ -757,6 +764,26 @@ function drawBackground() {
  noStroke();
 }
 
+function drawFog() {
+
+  fogLayer.clear();
+  fogLayer.noStroke();
+
+  for (let x = 0; x < width; x += 12) {
+    for (let y = 0; y < height; y += 12) {
+
+      let n = noise(
+        (x + frameCount * 0.35) * 0.008,
+        (y + frameCount * 0.2) * 0.008
+      );
+
+      fogLayer.fill(220, 225, 235, map(n, 0, 1, 10, 45));
+      fogLayer.rect(x, y, 12, 12);
+    }
+  }
+
+  image(fogLayer, 0, 0);
+}
 
 // ------------------------------------------------------------
 // drawBossZone()
@@ -1229,6 +1256,9 @@ function drawDoppelganger() {
   push();
   imageMode(CENTER);
 
+  drawingContext.shadowBlur = 18;
+  drawingContext.shadowColor = "rgba(255, 80, 80, 0.8)";
+
   if (flip) {
 
     translate(
@@ -1265,9 +1295,66 @@ function drawDoppelganger() {
     );
   }
 
+  drawingContext.shadowBlur = 0;
+
   pop();
 }
 
+function drawDoppelgangerScreen() {
+
+  if (!doppelganger.active) return;
+
+  let sx = doppelganger.x - camX;
+  let sy = doppelganger.y - camY;
+
+  let row = 0;
+
+  if (doppelganger.direction.y === 1) row = 3;
+  else if (doppelganger.direction.y === -1) row = 0;
+  else row = 1;
+
+  let flip = doppelganger.direction.x === -1;
+
+  push();
+  imageMode(CENTER);
+
+  drawingContext.shadowBlur = 22;
+  drawingContext.shadowColor = "rgba(255,40,40,0.9)";
+
+  if (flip) {
+    translate(sx, sy);
+    scale(-1, 1);
+
+    image(
+      doppelgangerSheet,
+      0,
+      0,
+      FRAME_W * PLAYER_SCALE,
+      FRAME_H * PLAYER_SCALE,
+      doppelganger.currentFrame * FRAME_W,
+      row * FRAME_H,
+      FRAME_W,
+      FRAME_H
+    );
+  }
+  else {
+    image(
+      doppelgangerSheet,
+      sx,
+      sy,
+      FRAME_W * PLAYER_SCALE,
+      FRAME_H * PLAYER_SCALE,
+      doppelganger.currentFrame * FRAME_W,
+      row * FRAME_H,
+      FRAME_W,
+      FRAME_H
+    );
+  }
+
+  drawingContext.shadowBlur = 0;
+
+  pop();
+}
 
 
 // ------------------------------------------------------------
@@ -1714,6 +1801,7 @@ function checkDoppelgangerCollision() {
     gameState = STATE_OVER;
   }
 }
+
 function updateTimer() {
  if (gameState !== STATE_SCAVENGE) return;
 
